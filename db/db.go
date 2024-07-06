@@ -10,7 +10,7 @@ import (
 
 var DB *sql.DB
 
-func InitDB(dataSourceName string) *sql.DB {
+func InitDB(dataSourceName string) (*sql.DB, error) {
 	var err error
 	DB, err = sql.Open("mysql", dataSourceName)
 	if err != nil {
@@ -23,5 +23,5 @@ func InitDB(dataSourceName string) *sql.DB {
 	}
 
 	fmt.Println("Database connected")
-	return DB
+	return DB, err
 }

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/japhy-tech/backend-test/controllers"
+	"github.com/japhy-tech/backend-test/db"
 	"net"
 	"net/http"
 	"os"
@@ -41,7 +42,7 @@ func main() {
 		logger.Info(msg)
 	}
 
-	db, err := sql.Open("mysql", MysqlDSN)
+	db, err := db.InitDB(MysqlDSN)
 	if err != nil {
 		logger.Fatal(err.Error())
 		os.Exit(1)
@@ -65,6 +66,7 @@ func main() {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}).Methods(http.MethodGet)
+	r.HandleFunc("/getAllPets", controllers.GetAllHandler).Methods(http.MethodGet)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),
