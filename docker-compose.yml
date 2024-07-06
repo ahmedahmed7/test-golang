@@ -1,0 +1,49 @@
+services:
+  api:
+    container_name: backend-test
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+    ports:
+      - 50010:5000
+    volumes:
+      - .:/app
+  mysql-test:
+    platform: linux/arm64
+    build: ./.docker-compose/mysql
+    container_name: mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    env_file:
+      - .env
+    volumes:
+      - .docker-compose/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - test-mysql-data:/var/lib/mysql
+      - test-mysql-log:/var/log/mysql
+    command: >
+      bash -c "bash -x /entrypoint.sh mysqld --datadir=/var/lib/mysql --user=root & sleep 10 && bash /init/init.sh && tail -f /var/log/*.log"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    ports:
+      - 53306:3306
+  pma-test:
+    image: arm64v8/phpmyadmin:latest
+    container_name: pma-test
+    ports:
+      - 63306:80
+    environment:
+      PMA_HOST: mysql-test
+    volumes:
+      - .docker-compose/pma/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+    depends_on:
+      - mysql-test
+volumes:
+  test-mysql-data:
+  test-mysql-log:
