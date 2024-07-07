@@ -60,3 +60,30 @@ func DeletePetById(id int) error {
 
 	return nil
 }
+func AddPet(pet *entities.Pet) error {
+	query := "INSERT INTO pets (species, pet_size, name, average_male_adult_weight, average_female_adult_weight) VALUES (?, ?, ?, ?, ?)"
+	rows, err := db.DB.Exec(query, pet.Species, pet.PetSize, pet.Name, pet.AverageMaleAdultWeight, pet.AverageFemaleAdultWeight)
+	if err != nil {
+		return err
+	}
+	id, err := rows.LastInsertId()
+	if err != nil {
+		return err
+	}
+
+	pet.ID = uint(id)
+
+	return nil
+}
+func UpdatePet(pet *entities.Pet) error {
+	query := `
+        UPDATE pets 
+        SET species = ?, pet_size = ?, name = ?, average_male_adult_weight = ?, average_female_adult_weight = ?
+        WHERE id = ?
+    `
+	_, err := db.DB.Exec(query, pet.Species, pet.PetSize, pet.Name, pet.AverageMaleAdultWeight, pet.AverageFemaleAdultWeight, pet.ID)
+	if err != nil {
+		return err
+	}
+	return nil
+}

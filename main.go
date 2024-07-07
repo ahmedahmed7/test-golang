@@ -121,6 +121,8 @@ func main() {
 	r.HandleFunc("/getAllPets", controllers.GetAllHandler).Methods(http.MethodGet)
 	r.HandleFunc("/getPet/{id}", controllers.GetOne).Methods(http.MethodGet)
 	r.HandleFunc("/deletePet/{id}", controllers.DeleteOne).Methods(http.MethodDelete)
+	r.HandleFunc("/addPet", controllers.AddPet).Methods(http.MethodPost)
+	r.HandleFunc("/updatePet/{id}", controllers.UpdatePet).Methods(http.MethodPatch)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),
