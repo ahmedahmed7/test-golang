@@ -2,26 +2,23 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
-
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/japhy-tech/backend-test/utils"
 )
 
 var DB *sql.DB
 
-func InitDB(dataSourceName string) (*sql.DB, error) {
+func InitDB(dsn string) (*sql.DB, error) {
 	var err error
-	DB, err = sql.Open("mysql", dataSourceName)
+	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatal(err)
+		utils.Logger.Fatal(err)
 	}
 
 	err = DB.Ping()
 	if err != nil {
-		log.Fatal(err)
+		utils.Logger.Fatal(err)
 	}
 
-	fmt.Println("Database connected")
 	return DB, err
 }

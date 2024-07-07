@@ -9,6 +9,17 @@ import (
 	"strconv"
 )
 
+func LoadData(w http.ResponseWriter, r *http.Request) {
+	err := repositories.LoadData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "data loaded"})
+}
 func GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	pets, err := repositories.GetAllPets()
 	if err != nil {
@@ -91,4 +102,36 @@ func UpdatePet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "pet updated"})
+}
+
+func FilterPets(w http.ResponseWriter, r *http.Request) {
+	species := r.URL.Query().Get("species")
+	weightMaleStr := r.URL.Query().Get("weightMale")
+	weightFemaleStr := r.URL.Query().Get("weightFemale")
+
+	var weightMale, weightFemale float64
+	var err error
+	if weightMaleStr != "" {
+		weightMale, err = strconv.ParseFloat(weightMaleStr, 64)
+		if err != nil {
+			http.Error(w, "weightMale invalid", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if weightFemaleStr != "" {
+		weightFemale, err = strconv.ParseFloat(weightFemaleStr, 64)
+		if err != nil {
+			http.Error(w, "weightFemale invalid", http.StatusBadRequest)
+			return
+		}
+	}
+	pets, err := repositories.FilterPet(species, weightMale, weightFemale)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pets)
 }
