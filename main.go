@@ -120,6 +120,7 @@ func main() {
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/getAllPets", controllers.GetAllHandler).Methods(http.MethodGet)
 	r.HandleFunc("/getPet/{id}", controllers.GetOne).Methods(http.MethodGet)
+	r.HandleFunc("/deletePet/{id}", controllers.DeleteOne).Methods(http.MethodDelete)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),

@@ -43,3 +43,20 @@ func GetPetById(id int) (*entities.Pet, error) {
 
 	return &pet, nil
 }
+func DeletePetById(id int) error {
+	query := "DELETE FROM pets WHERE id=?"
+	rows, err := db.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("pet doesn't exist")
+	}
+
+	return nil
+}
