@@ -12,6 +12,8 @@ services:
       - 50010:5000
     volumes:
       - .:/app
+    networks:
+      - backend-network
   mysql-test:
     platform: linux/arm64
     build: ./.docker-compose/mysql
@@ -33,6 +35,8 @@ services:
       retries: 5
     ports:
       - 53306:3306
+    networks:
+      - backend-network
   pma-test:
     image: arm64v8/phpmyadmin:latest
     container_name: pma-test
@@ -44,6 +48,10 @@ services:
       - .docker-compose/pma/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
     depends_on:
       - mysql-test
+    networks:
+      - backend-network
 volumes:
   test-mysql-data:
   test-mysql-log:
+networks:
+  backend-network:
