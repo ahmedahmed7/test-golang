@@ -3,19 +3,16 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/japhy-tech/backend-test/controllers"
+	"github.com/japhy-tech/backend-test/database_actions"
 	"github.com/japhy-tech/backend-test/db"
-	"log"
+	"github.com/japhy-tech/backend-test/internal"
+	"github.com/japhy-tech/backend-test/utils"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
-
-	charmLog "github.com/charmbracelet/log"
-	"github.com/gorilla/mux"
-	"github.com/japhy-tech/backend-test/database_actions"
-	"github.com/japhy-tech/backend-test/internal"
 )
 
 const (
@@ -24,23 +21,15 @@ const (
 )
 
 func main() {
-	logger := charmLog.NewWithOptions(os.Stderr, charmLog.Options{
-		Formatter:       charmLog.TextFormatter,
-		ReportCaller:    true,
-		ReportTimestamp: true,
-		TimeFormat:      time.Kitchen,
-		Prefix:          "🧑‍💻 backend-test",
-		Level:           charmLog.DebugLevel,
-	})
 
 	err := database_actions.InitMigrator(MysqlDSN)
 	if err != nil {
-		logger.Fatal(err.Error())
+		utils.Logger.Fatal(err.Error())
 	}
 	db.InitDB(MysqlDSN)
 
 	if err != nil {
-		logger.Fatal(err.Error())
+		utils.Logger.Fatal(err.Error())
 		os.Exit(1)
 	}
 	// Define the CSV file path
@@ -49,11 +38,10 @@ func main() {
 	// Open the CSV file
 	file, err := os.Open(csvFile)
 	if err != nil {
-		log.Fatalf("Failed to open CSV file: %v", err)
+		utils.Logger.Fatal(err.Error())
 	}
 	defer file.Close()
 
-	// Create a new CSV reader
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	stmt, err := db.DB.Prepare(`
@@ -68,7 +56,7 @@ func main() {
                                             
 		    `)
 	defer stmt.Close()
-	// Insert data into the MySQL table
+	// Insert data
 	for i, record := range records {
 		if i == 0 {
 			// Skip the header row
@@ -76,41 +64,40 @@ func main() {
 		}
 		id, err := strconv.Atoi(record[0])
 		if err != nil {
-			log.Fatalf("Failed to convert id to integer: %v", err)
+			utils.Logger.Fatal(err.Error())
 		}
 		avgMaleWeight, err := strconv.ParseFloat(record[4], 64)
 		if err != nil {
-			log.Fatalf("Failed to convert average_male_adult_weight to float: %v", err)
+			utils.Logger.Fatal(err.Error())
 		}
 		avgFemaleWeight, err := strconv.ParseFloat(record[5], 64)
 		if err != nil {
-			log.Fatalf("Failed to convert average_female_adult_weight to float: %v", err)
+			utils.Logger.Fatal(err.Error())
 		}
 		_, err = stmt.Exec(id, record[1], record[2], record[3], avgMaleWeight, avgFemaleWeight)
 		if err != nil {
-			log.Fatalf("Failed to execute statement: %v", err)
+			utils.Logger.Fatal(err.Error())
 		}
 	}
 
-	fmt.Println("Data inserted successfully")
 	msg, err := database_actions.RunMigrate("up", 0)
 	if err != nil {
-		logger.Error(err.Error())
+		utils.Logger.Error(err.Error())
 	} else {
-		logger.Info(msg)
+		utils.Logger.Info(msg)
 	}
 	defer db.DB.Close()
 	db.DB.SetMaxIdleConns(0)
 
 	err = db.DB.Ping()
 	if err != nil {
-		logger.Fatal(err.Error())
+		utils.Logger.Fatal(err.Error())
 		os.Exit(1)
 	}
 
-	logger.Info("Database connected")
+	utils.Logger.Info("Database connected")
 
-	app := internal.NewApp(logger)
+	app := internal.NewApp(utils.Logger)
 
 	r := mux.NewRouter()
 	app.RegisterRoutes(r.PathPrefix("/v1").Subrouter())
@@ -123,6 +110,7 @@ func main() {
 	r.HandleFunc("/deletePet/{id}", controllers.DeleteOne).Methods(http.MethodDelete)
 	r.HandleFunc("/addPet", controllers.AddPet).Methods(http.MethodPost)
 	r.HandleFunc("/updatePet/{id}", controllers.UpdatePet).Methods(http.MethodPatch)
+	//r.HandleFunc("/findByWeightSpecies/{weight}/{species}", controllers.FindByWeightSpecies).Methods(http.MethodGet)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),
@@ -130,5 +118,5 @@ func main() {
 	)
 
 	// =============================== Starting Msg ===============================
-	logger.Info(fmt.Sprintf("Service started and listen on port %s", ApiPort))
+	utils.Logger.Info(fmt.Sprintf("Service started and listen on port %s", ApiPort))
 }
