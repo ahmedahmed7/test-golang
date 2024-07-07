@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"github.com/japhy-tech/backend-test/controllers"
 	"github.com/japhy-tech/backend-test/db"
+	"log"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	charmLog "github.com/charmbracelet/log"
@@ -34,23 +37,72 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
+	db.InitDB(MysqlDSN)
 
+	if err != nil {
+		logger.Fatal(err.Error())
+		os.Exit(1)
+	}
+	// Define the CSV file path
+	csvFile := "./breeds.csv"
+
+	// Open the CSV file
+	file, err := os.Open(csvFile)
+	if err != nil {
+		log.Fatalf("Failed to open CSV file: %v", err)
+	}
+	defer file.Close()
+
+	// Create a new CSV reader
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	stmt, err := db.DB.Prepare(`
+		        INSERT INTO pets (id, species, pet_size, name, average_male_adult_weight, average_female_adult_weight)
+		        VALUES (?, ?, ?, ?, ?, ?)
+		         ON DUPLICATE KEY UPDATE 
+            species = VALUES(species), 
+            pet_size = VALUES(pet_size),
+            name = VALUES(name),
+            average_male_adult_weight = VALUES(average_male_adult_weight),
+            average_female_adult_weight = VALUES(average_female_adult_weight)
+                                            
+		    `)
+	defer stmt.Close()
+	// Insert data into the MySQL table
+	for i, record := range records {
+		if i == 0 {
+			// Skip the header row
+			continue
+		}
+		id, err := strconv.Atoi(record[0])
+		if err != nil {
+			log.Fatalf("Failed to convert id to integer: %v", err)
+		}
+		avgMaleWeight, err := strconv.ParseFloat(record[4], 64)
+		if err != nil {
+			log.Fatalf("Failed to convert average_male_adult_weight to float: %v", err)
+		}
+		avgFemaleWeight, err := strconv.ParseFloat(record[5], 64)
+		if err != nil {
+			log.Fatalf("Failed to convert average_female_adult_weight to float: %v", err)
+		}
+		_, err = stmt.Exec(id, record[1], record[2], record[3], avgMaleWeight, avgFemaleWeight)
+		if err != nil {
+			log.Fatalf("Failed to execute statement: %v", err)
+		}
+	}
+
+	fmt.Println("Data inserted successfully")
 	msg, err := database_actions.RunMigrate("up", 0)
 	if err != nil {
 		logger.Error(err.Error())
 	} else {
 		logger.Info(msg)
 	}
+	defer db.DB.Close()
+	db.DB.SetMaxIdleConns(0)
 
-	db, err := db.InitDB(MysqlDSN)
-	if err != nil {
-		logger.Fatal(err.Error())
-		os.Exit(1)
-	}
-	defer db.Close()
-	db.SetMaxIdleConns(0)
-
-	err = db.Ping()
+	err = db.DB.Ping()
 	if err != nil {
 		logger.Fatal(err.Error())
 		os.Exit(1)
@@ -67,6 +119,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	}).Methods(http.MethodGet)
 	r.HandleFunc("/getAllPets", controllers.GetAllHandler).Methods(http.MethodGet)
+	r.HandleFunc("/getPet/{id}", controllers.GetOne).Methods(http.MethodGet)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),
