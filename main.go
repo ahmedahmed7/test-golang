@@ -1,17 +1,16 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/japhy-tech/backend-test/controllers"
+	"github.com/japhy-tech/backend-test/database_actions"
+	"github.com/japhy-tech/backend-test/db"
+	"github.com/japhy-tech/backend-test/internal"
+	"github.com/japhy-tech/backend-test/utils"
 	"net"
 	"net/http"
 	"os"
-	"time"
-
-	charmLog "github.com/charmbracelet/log"
-	"github.com/gorilla/mux"
-	"github.com/japhy-tech/backend-test/database_actions"
-	"github.com/japhy-tech/backend-test/internal"
 )
 
 const (
@@ -20,44 +19,36 @@ const (
 )
 
 func main() {
-	logger := charmLog.NewWithOptions(os.Stderr, charmLog.Options{
-		Formatter:       charmLog.TextFormatter,
-		ReportCaller:    true,
-		ReportTimestamp: true,
-		TimeFormat:      time.Kitchen,
-		Prefix:          "🧑‍💻 backend-test",
-		Level:           charmLog.DebugLevel,
-	})
 
 	err := database_actions.InitMigrator(MysqlDSN)
 	if err != nil {
-		logger.Fatal(err.Error())
+		utils.Logger.Fatal(err.Error())
+	}
+	db.InitDB(MysqlDSN)
+
+	if err != nil {
+		utils.Logger.Fatal(err.Error())
+		os.Exit(1)
 	}
 
 	msg, err := database_actions.RunMigrate("up", 0)
 	if err != nil {
-		logger.Error(err.Error())
+		utils.Logger.Error(err.Error())
 	} else {
-		logger.Info(msg)
+		utils.Logger.Info(msg)
 	}
+	defer db.DB.Close()
+	db.DB.SetMaxIdleConns(0)
 
-	db, err := sql.Open("mysql", MysqlDSN)
+	err = db.DB.Ping()
 	if err != nil {
-		logger.Fatal(err.Error())
-		os.Exit(1)
-	}
-	defer db.Close()
-	db.SetMaxIdleConns(0)
-
-	err = db.Ping()
-	if err != nil {
-		logger.Fatal(err.Error())
+		utils.Logger.Fatal(err.Error())
 		os.Exit(1)
 	}
 
-	logger.Info("Database connected")
+	utils.Logger.Info("Database connected")
 
-	app := internal.NewApp(logger)
+	app := internal.NewApp(utils.Logger)
 
 	r := mux.NewRouter()
 	app.RegisterRoutes(r.PathPrefix("/v1").Subrouter())
@@ -65,6 +56,15 @@ func main() {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}).Methods(http.MethodGet)
+	//load data from csv
+	r.HandleFunc("/loadData", controllers.LoadData).Methods(http.MethodGet)
+	// CRUD
+	r.HandleFunc("/getAllPets", controllers.GetAllHandler).Methods(http.MethodGet)
+	r.HandleFunc("/getPet/{id}", controllers.GetOne).Methods(http.MethodGet)
+	r.HandleFunc("/deletePet/{id}", controllers.DeleteOne).Methods(http.MethodDelete)
+	r.HandleFunc("/addPet", controllers.AddPet).Methods(http.MethodPost)
+	r.HandleFunc("/updatePet/{id}", controllers.UpdatePet).Methods(http.MethodPatch)
+	r.HandleFunc("/findByWeightSpecies", controllers.FilterPets).Methods(http.MethodGet)
 
 	err = http.ListenAndServe(
 		net.JoinHostPort("", ApiPort),
@@ -72,5 +72,5 @@ func main() {
 	)
 
 	// =============================== Starting Msg ===============================
-	logger.Info(fmt.Sprintf("Service started and listen on port %s", ApiPort))
+	utils.Logger.Info(fmt.Sprintf("Service started and listen on port %s", ApiPort))
 }

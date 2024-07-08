@@ -35,3 +35,26 @@ Have fun and good luck!
 5. Once the application is up and running, you can access the REST API at http://localhost:50010. Use tools like Postman or curl to interact with the API.
 6. `curl -v http://localhost:50010/health` to ensure your application is running.
 7. send us the link to your repository with the api.
+
+
+curl:
+curl --location --request PATCH 'http://localhost:50010/updatePet/2?weightFemale=76' \
+--header 'Content-Type: application/json' \
+--data '{
+"species": "dog",
+"pet_size": "smalla",
+"name": "affenpinscheraaa",
+"average_male_adult_weight": 600011,
+"average_female_adult_weight": 5000112
+}'
+
+curl --location --request GET 'http://localhost:50010/findByWeightSpecies?species=dog&weightMale=4000&weightFemale=3000' \
+--header 'Content-Type: application/json' \
+--data '{
+"species": "dog",
+"pet_size": "smalla",
+"name": "affenpinscheraaa",
+"average_male_adult_weight": 600011,
+"average_female_adult_weight": 5000112
+}'
+
